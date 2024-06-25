@@ -1,30 +1,24 @@
-# 使用Alpine作为基础镜像
-FROM alpine:latest
-
-# 设置环境变量
-ENV ADGUARD_VERSION=v0.107.0
-
-# 安装必要的依赖项
-RUN apk add --no-cache curl tar
-
-# 创建目录并下载AdGuard Home
-RUN mkdir -p /opt/adguardhome \
-    && curl -L -o /tmp/AdGuardHome.tar.gz https://static.adguard.com/adguardhome/release/AdGuardHome_linux_amd64.tar.gz \
-    && tar -xzf /tmp/AdGuardHome.tar.gz -C /opt/adguardhome --strip-components=1 \
-    && rm /tmp/AdGuardHome.tar.gz
+# 使用Debian 12作为基础镜像
+FROM debian:12
 
 # 设置工作目录
-WORKDIR /opt/adguardhome
+WORKDIR /opt/AdGuardHome
+
+# 更新包列表并安装必要的软件包
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# 下载并执行AdGuard Home安装脚本
+RUN curl -s -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | bash
+
+# 设置工作目录为AdGuard Home的安装目录
+WORKDIR /opt/AdGuardHome/
 
 # 暴露端口
 EXPOSE 3000/tcp 3000/udp 53/tcp 53/udp 80/tcp 443/tcp 853/tcp 853/udp 3000/tcp
-# 设置卷
-VOLUME ["/opt/adguardhome/work", "/opt/adguardhome/conf"]
 
-# 入口点
-ENTRYPOINT ["/opt/adguardhome/AdGuardHome"]
+# 设置容器启动时运行AdGuard Home
 
-# 默认命令
-CMD ["-c", "/opt/adguardhome/conf/AdGuardHome.yaml", "-w", "/opt/adguardhome/work"]
-
+CMD ["/opt/AdGuardHome/AdGuardHome", "-s", "start"]
 
