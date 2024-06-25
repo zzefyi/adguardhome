@@ -1,24 +1,30 @@
-FROM golang:alpine AS build
-
-RUN apk add --update git make build-base npm && \
-    rm -rf /var/cache/apk/*
-
-WORKDIR /src/AdGuardHome
-COPY . /src/AdGuardHome
-RUN make
-
+# 使用Alpine作为基础镜像
 FROM alpine:latest
-LABEL maintainer="AdGuard Team <devteam@adguard.com>"
 
-# Update CA certs
-RUN apk --no-cache --update add ca-certificates && \
-    rm -rf /var/cache/apk/* && mkdir -p /opt/adguardhome
+# 设置环境变量
+ENV ADGUARD_VERSION=v0.107.0
 
-COPY --from=build /src/AdGuardHome/AdGuardHome /opt/adguardhome/AdGuardHome
+# 安装必要的依赖项
+RUN apk add --no-cache curl tar
 
-EXPOSE 53/tcp 53/udp 67/tcp 67/udp 68/tcp 68/udp 80/tcp 443/tcp 853/tcp 853/udp 3000/tcp
+# 创建目录并下载AdGuard Home
+RUN mkdir -p /opt/adguardhome \
+    && curl -L -o /tmp/AdGuardHome.tar.gz https://static.adguard.com/adguardhome/release/AdGuardHome_linux_amd64.tar.gz \
+    && tar -xzf /tmp/AdGuardHome.tar.gz -C /opt/adguardhome --strip-components=1 \
+    && rm /tmp/AdGuardHome.tar.gz
 
-VOLUME ["/opt/adguardhome/conf", "/opt/adguardhome/work"]
+# 设置工作目录
+WORKDIR /opt/adguardhome
 
+# 暴露端口
+EXPOSE 3000/tcp 3000/udp 53/tcp 53/udp 80/tcp 443/tcp 853/tcp 853/udp 3000/tcp
+# 设置卷
+VOLUME ["/opt/adguardhome/work", "/opt/adguardhome/conf"]
+
+# 入口点
 ENTRYPOINT ["/opt/adguardhome/AdGuardHome"]
-CMD ["-h", "0.0.0.0", "-c", "/opt/adguardhome/conf/AdGuardHome.yaml", "-w", "/opt/adguardhome/work"]
+
+# 默认命令
+CMD ["-c", "/opt/adguardhome/conf/AdGuardHome.yaml", "-w", "/opt/adguardhome/work"]
+
+
